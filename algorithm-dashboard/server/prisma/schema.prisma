@@ -1,0 +1,205 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User Management
+model User {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  username    String   @unique
+  password    String
+  avatar      String?
+  role        UserRole @default(STUDENT)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relationships
+  progress    UserProgress[]
+  executions  AlgorithmExecution[]
+  sessions    UserSession[]
+  achievements Achievement[]
+  
+  @@map("users")
+}
+
+model UserSession {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("user_sessions")
+}
+
+// Learning Structure: Topic → Pattern → Algorithm
+model Topic {
+  id          String   @id @default(cuid())
+  name        String   @unique // "Arrays", "Graphs", "Dynamic Programming"
+  slug        String   @unique
+  description String
+  difficulty  Difficulty
+  order       Int
+  isActive    Boolean  @default(true)
+  
+  patterns    Pattern[]
+  progress    UserProgress[]
+  
+  @@map("topics")
+}
+
+model Pattern {
+  id          String   @id @default(cuid())
+  name        String   // "Two Pointers", "Sliding Window", "Backtracking"
+  slug        String   @unique
+  description String
+  difficulty  Difficulty
+  order       Int
+  topicId     String
+  isActive    Boolean  @default(true)
+  
+  topic       Topic @relation(fields: [topicId], references: [id])
+  algorithms  Algorithm[]
+  progress    UserProgress[]
+  
+  @@map("patterns")
+}
+
+model Algorithm {
+  id            String   @id @default(cuid())
+  name          String   // "Two Sum", "Valid Palindrome"
+  slug          String   @unique
+  description   String
+  difficulty    Difficulty
+  timeComplexity String
+  spaceComplexity String
+  tags          String[]
+  patternId     String
+  order         Int
+  isActive      Boolean  @default(true)
+  
+  // Content sections (9 comprehensive sections)
+  problem       String   // Problem statement
+  approach      String   // Approach explanation
+  visualization String   // Visualization data
+  implementation String  // Code implementation
+  walkthrough   String   // Step-by-step walkthrough
+  complexity    String   // Detailed complexity analysis
+  variations    String   // Problem variations
+  practice      String   // Practice problems
+  resources     String   // Additional resources
+  
+  pattern       Pattern @relation(fields: [patternId], references: [id])
+  executions    AlgorithmExecution[]
+  progress      UserProgress[]
+  
+  @@map("algorithms")
+}
+
+// User Progress Tracking
+model UserProgress {
+  id          String   @id @default(cuid())
+  userId      String
+  topicId     String?
+  patternId   String?
+  algorithmId String?
+  status      ProgressStatus
+  timeSpent   Int      @default(0) // in seconds
+  attempts    Int      @default(0)
+  completedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  user      User       @relation(fields: [userId], references: [id])
+  topic     Topic?     @relation(fields: [topicId], references: [id])
+  pattern   Pattern?   @relation(fields: [patternId], references: [id])
+  algorithm Algorithm? @relation(fields: [algorithmId], references: [id])
+  
+  @@unique([userId, topicId, patternId, algorithmId])
+  @@map("user_progress")
+}
+
+// Algorithm Execution & Visualization
+model AlgorithmExecution {
+  id           String   @id @default(cuid())
+  userId       String
+  algorithmId  String
+  language     String   // "javascript", "python", "java", "cpp"
+  code         String
+  input        Json
+  output       Json?
+  status       ExecutionStatus
+  executionTime Int?    // in milliseconds
+  memoryUsage  Int?     // in bytes
+  steps        Json?    // Visualization steps
+  error        String?
+  createdAt    DateTime @default(now())
+  
+  user      User      @relation(fields: [userId], references: [id])
+  algorithm Algorithm @relation(fields: [algorithmId], references: [id])
+  
+  @@map("algorithm_executions")
+}
+
+// Gamification
+model Achievement {
+  id          String   @id @default(cuid())
+  userId      String
+  type        AchievementType
+  title       String
+  description String
+  icon        String
+  earnedAt    DateTime @default(now())
+  
+  user User @relation(fields: [userId], references: [id])
+  
+  @@map("achievements")
+}
+
+// Enums
+enum UserRole {
+  STUDENT
+  EDUCATOR
+  ADMIN
+}
+
+enum Difficulty {
+  BEGINNER
+  EASY
+  MEDIUM
+  HARD
+  EXPERT
+}
+
+enum ProgressStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  MASTERED
+}
+
+enum ExecutionStatus {
+  PENDING
+  RUNNING
+  SUCCESS
+  ERROR
+  TIMEOUT
+  MEMORY_EXCEEDED
+}
+
+enum AchievementType {
+  FIRST_ALGORITHM
+  TOPIC_MASTER
+  PATTERN_EXPERT
+  SPEED_DEMON
+  MEMORY_OPTIMIZER
+  STREAK_KEEPER
+  PROBLEM_SOLVER
+}
